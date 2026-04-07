@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PM MVP Hello World</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f7f8fb;
+        color: #032147;
+      }
+
+      main {
+        max-width: 720px;
+        margin: 80px auto;
+        padding: 24px;
+        background: #ffffff;
+        border: 1px solid rgba(3, 33, 71, 0.08);
+        border-radius: 16px;
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      .result {
+        margin-top: 12px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #eef7fc;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Hello from PM MVP</h1>
+      <p>This static page is served by FastAPI.</p>
+      <p>It also calls the backend API endpoint <code>/api/hello</code>.</p>
+      <div class="result" id="api-result">Loading API response...</div>
+    </main>
+
+    <script>
+      async function loadApiMessage() {
+        const el = document.getElementById("api-result");
+        try {
+          const response = await fetch("/api/hello");
+          const data = await response.json();
+          el.textContent = "API says: " + data.message;
+        } catch (error) {
+          el.textContent = "API call failed";
+        }
+      }
+
+      loadApiMessage();
+    </script>
+  </body>
+</html>

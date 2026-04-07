@@ -18,7 +18,7 @@ This plan is the execution checklist for the MVP.
 - [x] Expand this plan with detailed checklists, tests, and success criteria for every phase.
 - [x] Capture all confirmed architecture and product decisions.
 - [x] Create `frontend/AGENTS.md` describing the current frontend codebase.
-- [ ] User reviews and approves this plan before Part 2 starts.
+- [x] User reviews and approves this plan before Part 2 starts.
 
 ### Tests
 
@@ -28,36 +28,38 @@ This plan is the execution checklist for the MVP.
 ### Success Criteria
 
 - [x] Plan is actionable without ambiguity for Parts 2-10.
-- [ ] User explicitly signs off on plan contents.
+- [x] User explicitly signs off on plan contents.
 
 ## Part 2: Scaffolding
 
 ### Checklist
 
-- [ ] Add Docker setup at repository root to run the app locally in one container.
-- [ ] Create FastAPI app structure in `backend/`.
-- [ ] Add a hello-world HTML response to verify static serving.
-- [ ] Add a hello-world API route to verify backend routing.
-- [ ] Define and scaffold start/stop scripts in `scripts/`:
-- [ ] `scripts/start-mac.sh`
-- [ ] `scripts/stop-mac.sh`
-- [ ] `scripts/start-linux.sh`
-- [ ] `scripts/stop-linux.sh`
-- [ ] `scripts/start-windows.ps1`
-- [ ] `scripts/stop-windows.ps1`
-- [ ] Ensure scripts are minimal and only support local MVP run/stop workflow.
+- [x] Add Docker setup at repository root to run the app locally in one container.
+- [x] Create FastAPI app structure in `backend/`.
+- [x] Add a hello-world HTML response to verify static serving.
+- [x] Add a hello-world API route to verify backend routing.
+- [x] Define and scaffold start/stop scripts in `scripts/`:
+- [x] `scripts/start-mac.sh`
+- [x] `scripts/stop-mac.sh`
+- [x] `scripts/start-linux.sh`
+- [x] `scripts/stop-linux.sh`
+- [x] `scripts/start-windows.ps1`
+- [x] `scripts/stop-windows.ps1`
+- [x] Ensure scripts are minimal and only support local MVP run/stop workflow.
 
 ### Tests
 
-- [ ] Unit: backend app boots and root/api routes return expected payloads.
-- [ ] Integration: container starts and both HTML + API endpoints are reachable.
-- [ ] End-to-end: run start script, load page, call API, run stop script cleanly.
+- [x] Unit: backend app boots and root/api routes return expected payloads.
+- [x] Integration: container starts and both HTML + API endpoints are reachable.
+- [x] End-to-end: run start script, load page, call API, run stop script cleanly.
 
 ### Success Criteria
 
-- [ ] `docker` startup serves hello-world HTML and API.
-- [ ] Start/stop scripts work on macOS, Linux, and Windows PowerShell.
-- [ ] No manual setup beyond `.env` and documented commands.
+- [x] `docker` startup serves hello-world HTML and API.
+- [x] Start/stop scripts work on macOS, Linux, and Windows PowerShell.
+- [x] No manual setup beyond `.env` and documented commands.
+
+Note: scripts were implemented for all three platforms and validated on macOS. Linux/Windows runtime execution was explicitly accepted as skipped by user approval.
 
 ## Part 3: Add Frontend
 
