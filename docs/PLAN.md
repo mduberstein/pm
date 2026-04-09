@@ -86,24 +86,24 @@ Note: scripts were implemented for all three platforms and validated on macOS. L
 
 ### Checklist
 
-- [ ] Add login screen at `/` when no valid token exists.
-- [ ] Validate only MVP credentials: `user` / `password`.
-- [ ] On success, issue lightweight JWT with minimal claims.
-- [ ] Persist token in a simple client-safe MVP storage approach.
-- [ ] Add logout flow that clears token and returns to login.
-- [ ] Protect board access so unauthenticated sessions cannot view it.
+- [x] Add login screen at `/` when no valid token exists.
+- [x] Validate only MVP credentials: `user` / `password`.
+- [x] On success, issue lightweight JWT with minimal claims.
+- [x] Persist token in a simple client-safe MVP storage approach.
+- [x] Add logout flow that clears token and returns to login.
+- [x] Protect board access so unauthenticated sessions cannot view it.
 
 ### Tests
 
-- [ ] Unit: credential validation and token utility behavior.
-- [ ] Integration: auth middleware/dependency enforces protected access.
-- [ ] End-to-end: login success, login failure, logout behavior, guarded routes.
+- [x] Unit: credential validation and token utility behavior.
+- [x] Integration: auth middleware/dependency enforces protected access.
+- [x] End-to-end: login success, login failure, logout behavior, guarded routes.
 
 ### Success Criteria
 
-- [ ] Unauthenticated user sees login screen, not board.
-- [ ] Authenticated user sees board until logout/token expiry.
-- [ ] Invalid credentials never create a valid session.
+- [x] Unauthenticated user sees login screen, not board.
+- [x] Authenticated user sees board until logout/token expiry.
+- [x] Invalid credentials never create a valid session.
 
 ## Part 5: Database Modeling
 
