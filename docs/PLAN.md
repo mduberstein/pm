@@ -65,22 +65,22 @@ Note: scripts were implemented for all three platforms and validated on macOS. L
 
 ### Checklist
 
-- [ ] Build Next.js frontend into static assets.
-- [ ] Configure FastAPI static file serving for the built frontend at `/`.
-- [ ] Preserve existing Kanban interactions in served production build.
-- [ ] Keep architecture single-container with no separate frontend runtime.
+- [x] Build Next.js frontend into static assets.
+- [x] Configure FastAPI static file serving for the built frontend at `/`.
+- [x] Preserve existing Kanban interactions in served production build.
+- [x] Keep architecture single-container with no separate frontend runtime.
 
 ### Tests
 
-- [ ] Unit: existing frontend unit suite passes.
-- [ ] Integration: backend serves built frontend files correctly.
-- [ ] End-to-end: browser test validates board rendering at `/` in containerized app.
+- [x] Unit: existing frontend unit suite passes.
+- [x] Integration: backend serves built frontend files correctly.
+- [x] End-to-end: browser test validates board rendering at `/` in containerized app.
 
 ### Success Criteria
 
-- [ ] Visiting `/` shows the current Kanban UI from built frontend.
-- [ ] Existing drag/add/remove/rename behavior remains functional.
-- [ ] Test suites pass in CI-local command flow.
+- [x] Visiting `/` shows the current Kanban UI from built frontend.
+- [x] Existing drag/add/remove/rename behavior remains functional.
+- [x] Test suites pass in CI-local command flow.
 
 ## Part 4: Fake Sign In (JWT)
 
