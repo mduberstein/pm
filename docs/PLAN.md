@@ -11,6 +11,18 @@ This plan is the execution checklist for the MVP.
 - Test bar: unit + integration + end-to-end where applicable.
 - Script names will be defined in this plan and implemented later.
 
+## Implemented Decisions (Through Part 7)
+
+- Frontend auth token storage: browser local storage key `pm_auth_token`.
+- Auth endpoints: `POST /api/auth/login` and `GET /api/auth/me` with Bearer JWT.
+- Board API contract: `GET /api/board` and `PUT /api/board` with full board JSON payload replace for MVP.
+- Board payload validation: backend enforces card key/id consistency and valid card references from columns.
+- SQLite location: `DB_PATH` env var override supported; default path is `backend/data/pm.db`.
+- Frontend board sync model: apply UI change immediately, then persist via API; show non-blocking sync error banner on save failure.
+- Frontend load/error model: authenticated session loads board from API and shows loading/retry states for board fetch failures.
+- E2E runtime targeting: Playwright supports `PLAYWRIGHT_BASE_URL` for running browser tests against containerized app.
+- Persistence semantics: board state persists across page refresh and `docker restart pm-mvp`; it does not survive `scripts/stop-mac.sh` + `scripts/start-mac.sh` because the stop script removes the container.
+
 ## Part 1: Plan (Current Step)
 
 ### Checklist
@@ -149,30 +161,32 @@ Note: Part 5 defines schema/docs only. The above tests are executed in Part 6 wh
 ### Success Criteria
 
 - [x] Backend provides reliable CRUD operations needed by frontend MVP.
-- [x] Data persists across server restarts.
+- [x] Data persists across container restarts.
 - [x] Invalid payloads return clear 4xx responses.
 
 ## Part 7: Frontend + Backend Integration
 
 ### Checklist
 
-- [ ] Replace frontend in-memory board source with backend API calls.
-- [ ] Load board on sign-in and render state from API.
-- [ ] Persist card/column changes by calling backend update route.
-- [ ] Add minimal loading and error states for network boundaries.
-- [ ] Preserve current UX behavior where practical.
+- [x] Replace frontend in-memory board source with backend API calls.
+- [x] Load board on sign-in and render state from API.
+- [x] Persist card/column changes by calling backend update route.
+- [x] Add minimal loading and error states for network boundaries.
+- [x] Preserve current UX behavior where practical.
 
 ### Tests
 
-- [ ] Unit: API client helpers and state update adapters.
-- [ ] Integration: component tests with mocked backend responses.
-- [ ] End-to-end: real container flow verifies persistent board edits across refresh.
+- [x] Unit: API client helpers and state update adapters.
+- [x] Integration: component tests with mocked backend responses.
+- [x] End-to-end: real container flow verifies persistent board edits across refresh.
 
 ### Success Criteria
 
-- [ ] Board state is no longer ephemeral in browser memory.
-- [ ] Refresh and restart preserve latest saved board state.
-- [ ] Frontend behavior remains responsive and predictable.
+- [x] Board state is no longer ephemeral in browser memory.
+- [x] Refresh and container restart preserve latest saved board state.
+- [x] Frontend behavior remains responsive and predictable.
+
+Note: stop/start scripts remove and recreate the container, so container-local DB state is reset in that workflow.
 
 ## Part 8: AI Connectivity
 

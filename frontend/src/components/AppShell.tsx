@@ -2,15 +2,19 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import {
+  ApiError,
+  fetchBoard,
+  fetchCurrentUser,
+  loginRequest,
+  updateBoard,
+} from "@/lib/api";
+import type { BoardData } from "@/lib/kanban";
 
 const AUTH_TOKEN_KEY = "pm_auth_token";
 
 type AuthStatus = "checking" | "authenticated" | "unauthenticated";
-
-type LoginResponse = {
-  access_token: string;
-  token_type: string;
-};
+type BoardStatus = "idle" | "loading" | "ready" | "error";
 
 const getToken = () => {
   if (typeof window === "undefined") {
@@ -28,10 +32,28 @@ const clearToken = () => {
 
 export const AppShell = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [boardStatus, setBoardStatus] = useState<BoardStatus>("idle");
+  const [board, setBoard] = useState<BoardData | null>(null);
+  const [boardError, setBoardError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [username, setUsername] = useState("user");
   const [password, setPassword] = useState("password");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadBoard = async (token: string) => {
+    setBoardStatus("loading");
+    setBoardError(null);
+
+    try {
+      const data = await fetchBoard(token);
+      setBoard(data);
+      setBoardStatus("ready");
+    } catch {
+      setBoardStatus("error");
+      setBoardError("Unable to load board data. Please try again.");
+    }
+  };
 
   useEffect(() => {
     const verifySession = async () => {
@@ -42,22 +64,14 @@ export const AppShell = () => {
       }
 
       try {
-        const response = await fetch("/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          clearToken();
-          setAuthStatus("unauthenticated");
-          return;
-        }
+        await fetchCurrentUser(token);
 
         setAuthStatus("authenticated");
+        await loadBoard(token);
       } catch {
         clearToken();
         setAuthStatus("unauthenticated");
+        setBoardStatus("idle");
       }
     };
 
@@ -70,24 +84,8 @@ export const AppShell = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
-      });
+      const data = await loginRequest(username, password);
 
-      if (!response.ok) {
-        setErrorMessage("Invalid username or password.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const data = (await response.json()) as LoginResponse;
       if (!data.access_token) {
         setErrorMessage("Unable to start session.");
         setIsSubmitting(false);
@@ -96,16 +94,45 @@ export const AppShell = () => {
 
       window.localStorage.setItem(AUTH_TOKEN_KEY, data.access_token);
       setAuthStatus("authenticated");
+      await loadBoard(data.access_token);
       setIsSubmitting(false);
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setErrorMessage("Invalid username or password.");
+        setIsSubmitting(false);
+        return;
+      }
+
       setErrorMessage("Login failed. Please try again.");
       setIsSubmitting(false);
+    }
+  };
+
+  const handleBoardChange = async (nextBoard: BoardData) => {
+    setBoard(nextBoard);
+    setSyncError(null);
+
+    const token = getToken();
+    if (!token) {
+      handleLogout();
+      return;
+    }
+
+    try {
+      const persisted = await updateBoard(token, nextBoard);
+      setBoard(persisted);
+    } catch {
+      setSyncError("Could not sync board changes to the server.");
     }
   };
 
   const handleLogout = () => {
     clearToken();
     setAuthStatus("unauthenticated");
+    setBoardStatus("idle");
+    setBoard(null);
+    setBoardError(null);
+    setSyncError(null);
   };
 
   if (authStatus === "checking") {
@@ -191,7 +218,47 @@ export const AppShell = () => {
           Log out
         </button>
       </div>
-      <KanbanBoard />
+
+      {boardStatus === "loading" ? (
+        <main className="mx-auto flex min-h-[40vh] max-w-[1500px] items-center justify-center px-6 pb-8">
+          <div className="rounded-2xl border border-[var(--stroke)] bg-white px-6 py-5 text-sm font-semibold text-[var(--gray-text)] shadow-[var(--shadow)]">
+            Loading board...
+          </div>
+        </main>
+      ) : null}
+
+      {boardStatus === "error" ? (
+        <main className="mx-auto flex min-h-[40vh] max-w-[1500px] items-center justify-center px-6 pb-8">
+          <div className="rounded-2xl border border-[#f2c0c0] bg-[#fff5f5] px-6 py-5 text-sm text-[#962626] shadow-[var(--shadow)]">
+            <p>{boardError ?? "Unable to load board data."}</p>
+            <button
+              type="button"
+              onClick={() => {
+                const token = getToken();
+                if (token) {
+                  void loadBoard(token);
+                }
+              }}
+              className="mt-3 rounded-full border border-[#962626] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em]"
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+      ) : null}
+
+      {boardStatus === "ready" && board ? (
+        <>
+          {syncError ? (
+            <div className="mx-auto mt-4 max-w-[1500px] px-6">
+              <div className="rounded-xl border border-[#f2c0c0] bg-[#fff5f5] px-4 py-3 text-sm text-[#962626]">
+                {syncError}
+              </div>
+            </div>
+          ) : null}
+          <KanbanBoard initialBoard={board} onBoardChange={handleBoardChange} />
+        </>
+      ) : null}
     </div>
   );
 };

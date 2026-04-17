@@ -1,16 +1,114 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/AppShell";
+import { initialData } from "@/lib/kanban";
+
+const mockedFetch = vi.fn<
+  (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+>();
+
+const jsonResponse = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
+vi.stubGlobal("fetch", mockedFetch);
+
+const getUrl = (input: RequestInfo | URL) =>
+  typeof input === "string"
+    ? input
+    : input instanceof URL
+      ? input.toString()
+      : input.url;
 
 describe("AppShell", () => {
-  it("shows sign in when no auth token exists", async () => {
-    window.localStorage.removeItem("pm_auth_token");
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockedFetch.mockReset();
+  });
 
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows sign in when no auth token exists", async () => {
     render(<AppShell />);
 
     await waitFor(() => {
       expect(
         screen.getByRole("heading", { name: "Sign in to Kanban Studio" })
       ).toBeInTheDocument();
+    });
+  });
+
+  it("loads board data for authenticated session", async () => {
+    window.localStorage.setItem("pm_auth_token", "token-123");
+
+    mockedFetch.mockImplementation((input, init) => {
+      const url = getUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve(jsonResponse({ username: "user" }));
+      }
+
+      if (url === "/api/board" && method === "GET") {
+        return Promise.resolve(jsonResponse(initialData));
+      }
+
+      if (url === "/api/board" && method === "PUT") {
+        return Promise.resolve(jsonResponse(JSON.parse(String(init?.body ?? "{}"))));
+      }
+
+      return Promise.resolve(jsonResponse({ detail: "Not found" }, 404));
+    });
+
+    render(<AppShell />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Kanban Studio" })).toBeInTheDocument();
+    });
+  });
+
+  it("syncs board changes to backend", async () => {
+    window.localStorage.setItem("pm_auth_token", "token-123");
+
+    mockedFetch.mockImplementation((input, init) => {
+      const url = getUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve(jsonResponse({ username: "user" }));
+      }
+
+      if (url === "/api/board" && method === "GET") {
+        return Promise.resolve(jsonResponse(initialData));
+      }
+
+      if (url === "/api/board" && method === "PUT") {
+        return Promise.resolve(jsonResponse(JSON.parse(String(init?.body ?? "{}"))));
+      }
+
+      return Promise.resolve(jsonResponse({ detail: "Not found" }, 404));
+    });
+
+    render(<AppShell />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Kanban Studio" })).toBeInTheDocument();
+    });
+
+    const firstColumnTitle = screen.getAllByLabelText("Column title")[0];
+    await userEvent.clear(firstColumnTitle);
+    await userEvent.type(firstColumnTitle, "Renamed");
+
+    await waitFor(() => {
+      expect(mockedFetch).toHaveBeenCalledWith(
+        "/api/board",
+        expect.objectContaining({ method: "PUT" })
+      );
     });
   });
 });

@@ -66,3 +66,20 @@ test("moves a card between columns", async ({ page }) => {
   await page.mouse.up();
   await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
 });
+
+test("persists board changes across refresh", async ({ page }) => {
+  await login(page);
+
+  const title = `Persistent card ${Date.now()}`;
+  const firstColumn = page.locator('[data-testid^="column-"]').first();
+
+  await firstColumn.getByRole("button", { name: /add a card/i }).click();
+  await firstColumn.getByPlaceholder("Card title").fill(title);
+  await firstColumn.getByPlaceholder("Details").fill("Persists via backend API.");
+  await firstColumn.getByRole("button", { name: /add card/i }).click();
+  await expect(firstColumn.getByText(title)).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
+  await expect(page.getByText(title)).toBeVisible();
+});
