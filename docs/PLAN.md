@@ -114,7 +114,7 @@ Note: scripts were implemented for all three platforms and validated on macOS. L
 - [x] Document schema and rationale in `docs/`.
 - [x] Add future normalization plan in `backend/DatabaseNormalization.md`.
 - [x] Include phased migration path from JSON blob to normalized tables.
-- [ ] Request and obtain user sign-off before implementing data access layer.
+- [x] Request and obtain user sign-off before implementing data access layer.
 
 ### Tests
 
@@ -128,29 +128,29 @@ Note: Part 5 defines schema/docs only. The above tests are executed in Part 6 wh
 
 - [x] MVP schema supports one active board per user while allowing future many-board model.
 - [x] Documentation is clear enough to implement Part 6 directly.
-- [ ] User approves schema docs before moving forward.
+- [x] User approves schema docs before moving forward.
 
 ## Part 6: Backend API
 
 ### Checklist
 
-- [ ] Implement board read endpoint(s) for authenticated user context.
-- [ ] Implement board update endpoint(s) with full-board JSON replacement for MVP.
-- [ ] Validate request payload shape and reject invalid updates.
-- [ ] Ensure DB auto-creates on first run if file is absent.
-- [ ] Keep backend modules simple and narrowly scoped.
+- [x] Implement board read endpoint(s) for authenticated user context.
+- [x] Implement board update endpoint(s) with full-board JSON replacement for MVP.
+- [x] Validate request payload shape and reject invalid updates.
+- [x] Ensure DB auto-creates on first run if file is absent.
+- [x] Keep backend modules simple and narrowly scoped.
 
 ### Tests
 
-- [ ] Unit: service/repository functions for read/write and validation.
-- [ ] Integration: API endpoints interact with SQLite correctly.
-- [ ] End-to-end: authenticated user updates board and reload returns persisted state.
+- [x] Unit: service/repository functions for read/write and validation.
+- [x] Integration: API endpoints interact with SQLite correctly.
+- [x] End-to-end: authenticated user updates board and reload returns persisted state.
 
 ### Success Criteria
 
-- [ ] Backend provides reliable CRUD operations needed by frontend MVP.
-- [ ] Data persists across server restarts.
-- [ ] Invalid payloads return clear 4xx responses.
+- [x] Backend provides reliable CRUD operations needed by frontend MVP.
+- [x] Data persists across server restarts.
+- [x] Invalid payloads return clear 4xx responses.
 
 ## Part 7: Frontend + Backend Integration
 
