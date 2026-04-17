@@ -109,11 +109,11 @@ Note: scripts were implemented for all three platforms and validated on macOS. L
 
 ### Checklist
 
-- [ ] Define SQLite schema for users and boards (user -> board(s)).
-- [ ] For MVP persistence, store each board state as a JSON blob column.
-- [ ] Document schema and rationale in `docs/`.
-- [ ] Add future normalization plan in `backend/DatabaseNormalization.md`.
-- [ ] Include phased migration path from JSON blob to normalized tables.
+- [x] Define SQLite schema for users and boards (user -> board(s)).
+- [x] For MVP persistence, store each board state as a JSON blob column.
+- [x] Document schema and rationale in `docs/`.
+- [x] Add future normalization plan in `backend/DatabaseNormalization.md`.
+- [x] Include phased migration path from JSON blob to normalized tables.
 - [ ] Request and obtain user sign-off before implementing data access layer.
 
 ### Tests
@@ -122,10 +122,12 @@ Note: scripts were implemented for all three platforms and validated on macOS. L
 - [ ] Integration: startup creates DB file and schema when missing.
 - [ ] End-to-end: initial app run creates usable DB and persists sample board.
 
+Note: Part 5 defines schema/docs only. The above tests are executed in Part 6 when schema creation and persistence code is implemented.
+
 ### Success Criteria
 
-- [ ] MVP schema supports one active board per user while allowing future many-board model.
-- [ ] Documentation is clear enough to implement Part 6 directly.
+- [x] MVP schema supports one active board per user while allowing future many-board model.
+- [x] Documentation is clear enough to implement Part 6 directly.
 - [ ] User approves schema docs before moving forward.
 
 ## Part 6: Backend API
