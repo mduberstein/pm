@@ -1,3 +1,4 @@
+import json
 import os
 
 import httpx
@@ -5,6 +6,12 @@ from fastapi import status
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = "openai/gpt-oss-120b"
+OPENROUTER_SYSTEM_PROMPT = (
+    "You are a project-management assistant. "
+    "Return only valid JSON with exactly these keys: "
+    "assistant (string), board (object or null). "
+    "Do not include markdown code fences or extra keys."
+)
 
 
 class OpenRouterError(Exception):
@@ -18,15 +25,40 @@ class OpenRouterError(Exception):
         self.status_code = status_code
 
 
-def build_openrouter_request(prompt: str) -> dict[str, object]:
+def build_openrouter_request(
+    prompt: str,
+    board_state: dict | None = None,
+    history: list[dict[str, str]] | None = None,
+) -> dict[str, object]:
+    messages: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": OPENROUTER_SYSTEM_PROMPT,
+        }
+    ]
+
+    for item in history or []:
+        role = item.get("role")
+        content = item.get("content")
+        if role in {"user", "assistant"} and isinstance(content, str):
+            stripped = content.strip()
+            if stripped:
+                messages.append({"role": role, "content": stripped})
+
+    context_payload = {
+        "prompt": prompt,
+        "board": board_state or {},
+    }
+    messages.append(
+        {
+            "role": "user",
+            "content": json.dumps(context_payload),
+        }
+    )
+
     return {
         "model": OPENROUTER_MODEL,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
+        "messages": messages,
     }
 
 
@@ -75,7 +107,12 @@ def _openrouter_api_key() -> str:
     return api_key
 
 
-def fetch_assistant_reply(prompt: str, timeout_seconds: float = 20.0) -> str:
+def fetch_assistant_reply(
+    prompt: str,
+    board_state: dict | None = None,
+    history: list[dict[str, str]] | None = None,
+    timeout_seconds: float = 20.0,
+) -> str:
     headers = {
         "Authorization": f"Bearer {_openrouter_api_key()}",
         "Content-Type": "application/json",
@@ -85,7 +122,7 @@ def fetch_assistant_reply(prompt: str, timeout_seconds: float = 20.0) -> str:
         response = httpx.post(
             OPENROUTER_URL,
             headers=headers,
-            json=build_openrouter_request(prompt),
+            json=build_openrouter_request(prompt, board_state=board_state, history=history),
             timeout=timeout_seconds,
         )
     except httpx.RequestError as exc:

@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from backend.app import ai_client
@@ -24,31 +26,140 @@ def test_chat_requires_authentication() -> None:
 def test_chat_returns_assistant_text(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
 
-    captured: dict[str, str] = {}
+    captured: dict[str, object] = {}
 
-    def fake_fetch(prompt: str, timeout_seconds: float = 20.0) -> str:
+    def fake_fetch(
+        prompt: str,
+        board_state: dict | None = None,
+        history: list[dict[str, str]] | None = None,
+        timeout_seconds: float = 20.0,
+    ) -> str:
+        _ = board_state
         _ = timeout_seconds
         captured["prompt"] = prompt
-        return "2+2 is 4"
+        captured["history"] = history
+        return json.dumps({"assistant": "2+2 is 4", "board": None})
 
     monkeypatch.setattr(ai_client, "fetch_assistant_reply", fake_fetch)
 
     response = client.post(
         "/api/chat",
         headers=auth_header(),
-        json={"prompt": "Please solve 2+2"},
+        json={
+            "prompt": "Please solve 2+2",
+            "history": [
+                {"role": "user", "content": "Earlier question"},
+                {"role": "assistant", "content": "Earlier answer"},
+            ],
+        },
     )
 
     assert response.status_code == 200
-    assert response.json() == {"assistant": "2+2 is 4"}
+    assert response.json() == {"assistant": "2+2 is 4", "board": None}
     assert captured["prompt"] == "Please solve 2+2"
+    assert captured["history"] == [
+        {"role": "user", "content": "Earlier question"},
+        {"role": "assistant", "content": "Earlier answer"},
+    ]
+
+
+def test_chat_persists_valid_board_update(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
+
+    updated_board = {
+        "columns": [
+            {
+                "id": "col-backlog",
+                "title": "Backlog",
+                "cardIds": ["card-1"],
+            }
+        ],
+        "cards": {
+            "card-1": {
+                "id": "card-1",
+                "title": "Created by AI",
+                "details": "Persisted by chat endpoint",
+            }
+        },
+    }
+
+    def fake_fetch(
+        prompt: str,
+        board_state: dict | None = None,
+        history: list[dict[str, str]] | None = None,
+        timeout_seconds: float = 20.0,
+    ) -> str:
+        _ = prompt
+        _ = board_state
+        _ = history
+        _ = timeout_seconds
+        return json.dumps({"assistant": "Applied update.", "board": updated_board})
+
+    monkeypatch.setattr(ai_client, "fetch_assistant_reply", fake_fetch)
+
+    headers = auth_header()
+    response = client.post(
+        "/api/chat",
+        headers=headers,
+        json={"prompt": "Create one card in backlog"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"assistant": "Applied update.", "board": updated_board}
+
+    board_response = client.get("/api/board", headers=headers)
+    assert board_response.status_code == 200
+    assert board_response.json() == updated_board
+
+
+def test_chat_rejects_schema_invalid_response_without_board_mutation(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
+
+    headers = auth_header()
+    initial_board_response = client.get("/api/board", headers=headers)
+    assert initial_board_response.status_code == 200
+    initial_board = initial_board_response.json()
+
+    def fake_fetch(
+        prompt: str,
+        board_state: dict | None = None,
+        history: list[dict[str, str]] | None = None,
+        timeout_seconds: float = 20.0,
+    ) -> str:
+        _ = prompt
+        _ = board_state
+        _ = history
+        _ = timeout_seconds
+        return "not-json"
+
+    monkeypatch.setattr(ai_client, "fetch_assistant_reply", fake_fetch)
+
+    response = client.post(
+        "/api/chat",
+        headers=headers,
+        json={"prompt": "Move a card"},
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "OpenRouter returned schema-invalid response."}
+
+    reloaded_board_response = client.get("/api/board", headers=headers)
+    assert reloaded_board_response.status_code == 200
+    assert reloaded_board_response.json() == initial_board
 
 
 def test_chat_surfaces_provider_error_envelope(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
 
-    def fake_fetch(prompt: str, timeout_seconds: float = 20.0) -> str:
+    def fake_fetch(
+        prompt: str,
+        board_state: dict | None = None,
+        history: list[dict[str, str]] | None = None,
+        timeout_seconds: float = 20.0,
+    ) -> str:
         _ = prompt
+        _ = board_state
+        _ = history
         _ = timeout_seconds
         raise ai_client.OpenRouterError("OpenRouter request failed.", status_code=502)
 
@@ -71,6 +182,21 @@ def test_chat_rejects_empty_prompt(monkeypatch, tmp_path) -> None:
         "/api/chat",
         headers=auth_header(),
         json={"prompt": "   "},
+    )
+
+    assert response.status_code == 422
+
+
+def test_chat_rejects_invalid_history_role(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
+
+    response = client.post(
+        "/api/chat",
+        headers=auth_header(),
+        json={
+            "prompt": "Please solve 2+2",
+            "history": [{"role": "system", "content": "Not allowed"}],
+        },
     )
 
     assert response.status_code == 422

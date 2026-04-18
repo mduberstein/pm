@@ -2,18 +2,34 @@ import pytest
 
 from backend.app.ai_client import (
     OPENROUTER_MODEL,
+    OPENROUTER_SYSTEM_PROMPT,
     OpenRouterError,
     build_openrouter_request,
     parse_openrouter_response,
 )
 
 
-def test_build_openrouter_request_uses_locked_model_and_prompt() -> None:
-    request_payload = build_openrouter_request("2+2")
+def test_build_openrouter_request_uses_locked_model_and_context() -> None:
+    request_payload = build_openrouter_request(
+        "2+2",
+        board_state={"columns": [], "cards": {}},
+        history=[
+            {"role": "user", "content": "Earlier request"},
+            {"role": "assistant", "content": "Earlier response"},
+        ],
+    )
 
     assert request_payload == {
         "model": OPENROUTER_MODEL,
-        "messages": [{"role": "user", "content": "2+2"}],
+        "messages": [
+            {"role": "system", "content": OPENROUTER_SYSTEM_PROMPT},
+            {"role": "user", "content": "Earlier request"},
+            {"role": "assistant", "content": "Earlier response"},
+            {
+                "role": "user",
+                "content": '{"prompt": "2+2", "board": {"columns": [], "cards": {}}}',
+            },
+        ],
     }
 
 

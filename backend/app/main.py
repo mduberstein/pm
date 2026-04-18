@@ -1,10 +1,11 @@
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from backend.app import ai_client
 from backend.app.auth import create_access_token, get_current_user, validate_credentials
@@ -72,6 +73,7 @@ class BoardStateModel(BaseModel):
 
 class ChatRequest(BaseModel):
     prompt: str
+    history: list["ChatMessage"] = Field(default_factory=list)
 
     @field_validator("prompt")
     @classmethod
@@ -82,8 +84,43 @@ class ChatRequest(BaseModel):
         return trimmed
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: str) -> str:
+        trimmed = value.strip().lower()
+        if trimmed not in {"user", "assistant"}:
+            raise ValueError("History role must be 'user' or 'assistant'.")
+        return trimmed
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("History content cannot be empty.")
+        return trimmed
+
+
+class ChatAIResponse(BaseModel):
+    assistant: str
+    board: BoardStateModel | None = None
+
+    @field_validator("assistant")
+    @classmethod
+    def validate_assistant(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Assistant response cannot be empty.")
+        return trimmed
+
+
 class ChatResponse(BaseModel):
     assistant: str
+    board: BoardStateModel | None = None
 
 
 @app.get("/api/hello")
@@ -126,13 +163,49 @@ def chat(
     payload: ChatRequest,
     username: str = Depends(get_current_user),
 ) -> ChatResponse:
-    _ = username
+    current_board = board_repository.get_active_board(username)
+    history_payload = [message.model_dump() for message in payload.history]
+
     try:
-        assistant_reply = ai_client.fetch_assistant_reply(payload.prompt)
+        assistant_reply = ai_client.fetch_assistant_reply(
+            payload.prompt,
+            board_state=current_board,
+            history=history_payload,
+        )
     except ai_client.OpenRouterError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
-    return ChatResponse(assistant=assistant_reply)
+    try:
+        parsed_ai_payload = json.loads(assistant_reply)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="OpenRouter returned schema-invalid response.",
+        ) from exc
+
+    if not isinstance(parsed_ai_payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="OpenRouter returned schema-invalid response.",
+        )
+
+    try:
+        structured_response = ChatAIResponse.model_validate(parsed_ai_payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="OpenRouter returned schema-invalid response.",
+        ) from exc
+
+    saved_board: BoardStateModel | None = None
+    if structured_response.board is not None:
+        persisted_board = board_repository.update_active_board(
+            username,
+            structured_response.board.model_dump(),
+        )
+        saved_board = BoardStateModel.model_validate(persisted_board)
+
+    return ChatResponse(assistant=structured_response.assistant, board=saved_board)
 
 
 if FRONTEND_DIR.exists():

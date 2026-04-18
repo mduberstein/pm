@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_MINUTES = 60
+JWT_EXPIRE_MINUTES = 480
 DEFAULT_JWT_SECRET = "pm-dev-jwt-secret"
 
 security = HTTPBearer(auto_error=False)
@@ -17,12 +17,32 @@ def _jwt_secret() -> str:
     return os.getenv("JWT_SECRET", DEFAULT_JWT_SECRET)
 
 
+def _default_jwt_expire_minutes() -> int:
+    configured = os.getenv("JWT_EXPIRE_MINUTES", "").strip()
+    if not configured:
+        return JWT_EXPIRE_MINUTES
+
+    try:
+        parsed = int(configured)
+    except ValueError:
+        return JWT_EXPIRE_MINUTES
+
+    if parsed <= 0:
+        return JWT_EXPIRE_MINUTES
+
+    return parsed
+
+
 def validate_credentials(username: str, password: str) -> bool:
     return username == "user" and password == "password"
 
 
-def create_access_token(username: str, expires_minutes: int = JWT_EXPIRE_MINUTES) -> str:
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+def create_access_token(username: str, expires_minutes: int | None = None) -> str:
+    lifetime_minutes = expires_minutes
+    if lifetime_minutes is None:
+        lifetime_minutes = _default_jwt_expire_minutes()
+
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=lifetime_minutes)
     payload = {
         "sub": username,
         "exp": expires_at,

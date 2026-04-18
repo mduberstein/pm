@@ -222,25 +222,35 @@ Note: stop/start scripts remove and recreate the container, so container-local D
 
 ### Checklist
 
-- [ ] Define strict JSON schema for AI response payload:
-- [ ] User-facing assistant message.
-- [ ] Optional board update object (full board JSON for MVP).
-- [ ] Include board JSON, user prompt, and conversation history in AI request context.
-- [ ] Enforce strict backend schema validation before using AI output.
-- [ ] Reject or surface schema-invalid responses without mutating persisted board.
-- [ ] Persist valid board updates through existing backend board API/service layer.
+- [x] Define strict JSON schema for AI response payload:
+- [x] User-facing assistant message.
+- [x] Optional board update object (full board JSON for MVP).
+- [x] Include board JSON, user prompt, and conversation history in AI request context.
+- [x] Enforce strict backend schema validation before using AI output.
+- [x] Reject or surface schema-invalid responses without mutating persisted board.
+- [x] Persist valid board updates through existing backend board API/service layer.
 
 ### Tests
 
-- [ ] Unit: schema validator accepts valid payloads and rejects invalid payloads.
-- [ ] Integration: AI service with mocked model outputs (valid/invalid/no-update).
-- [ ] End-to-end: user prompt can trigger valid board mutation and persisted reload.
+- [x] Unit: schema validator accepts valid payloads and rejects invalid payloads.
+- [x] Integration: AI service with mocked model outputs (valid/invalid/no-update).
+- [x] End-to-end: user prompt can trigger valid board mutation and persisted reload.
 
 ### Success Criteria
 
-- [ ] No non-conforming AI output can update board state.
-- [ ] Valid AI updates are persisted and reflected in subsequent reads.
-- [ ] Assistant response always returns safely, even when update is rejected.
+- [x] No non-conforming AI output can update board state.
+- [x] Valid AI updates are persisted and reflected in subsequent reads.
+- [x] Assistant response always returns safely, even when update is rejected.
+
+### Manual QA (Part 9)
+
+- Use Swagger at `http://localhost:8000/docs` (or Postman/Insomnia) with Bearer auth.
+- `POST /api/auth/login` with `user` / `password`; copy `access_token`.
+- `GET /api/board` and save the baseline board JSON.
+- `POST /api/chat` with a prompt and optional history payload.
+- Verify response shape is `{ "assistant": string, "board": object|null }`.
+- If `board` is non-null, call `GET /api/board` and verify persisted state matches the update.
+- Negative checks: no token returns 401; empty prompt returns 422.
 
 ## Part 10: Frontend AI Sidebar
 
