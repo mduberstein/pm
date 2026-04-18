@@ -1,10 +1,12 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
+from backend.app import ai_client
 from backend.app.auth import create_access_token, get_current_user, validate_credentials
 from backend.app.board_repository import BoardRepository
 from backend.app.db import ensure_database
@@ -13,7 +15,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 FRONTEND_DIR = STATIC_DIR / "frontend"
 
-app = FastAPI(title="PM MVP Backend")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    ensure_database()
+    yield
+
+
+app = FastAPI(title="PM MVP Backend", lifespan=lifespan)
 board_repository = BoardRepository()
 
 
@@ -61,9 +70,20 @@ class BoardStateModel(BaseModel):
         return self
 
 
-@app.on_event("startup")
-def startup() -> None:
-    ensure_database()
+class ChatRequest(BaseModel):
+    prompt: str
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Prompt cannot be empty.")
+        return trimmed
+
+
+class ChatResponse(BaseModel):
+    assistant: str
 
 
 @app.get("/api/hello")
@@ -99,6 +119,20 @@ def update_board(
     username: str = Depends(get_current_user),
 ) -> dict:
     return board_repository.update_active_board(username, payload.model_dump())
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+def chat(
+    payload: ChatRequest,
+    username: str = Depends(get_current_user),
+) -> ChatResponse:
+    _ = username
+    try:
+        assistant_reply = ai_client.fetch_assistant_reply(payload.prompt)
+    except ai_client.OpenRouterError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    return ChatResponse(assistant=assistant_reply)
 
 
 if FRONTEND_DIR.exists():

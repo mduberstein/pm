@@ -2,10 +2,17 @@ import subprocess
 import time
 from pathlib import Path
 import os
+import re
 
 import httpx
+import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
+
+
+def live_chat_enabled() -> bool:
+    has_key = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    return has_key and os.getenv("OPENROUTER_ENABLE_LIVE_TESTS", "1") == "1"
 
 
 def wait_for_server(url: str, timeout_seconds: float = 10.0) -> None:
@@ -107,6 +114,68 @@ def test_server_serves_html_and_api() -> None:
         assert reloaded_response.status_code == 200
         assert reloaded_response.json() == updated_board
         assert db_path.exists()
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+        if db_path.exists():
+            db_path.unlink()
+
+
+@pytest.mark.skipif(
+    not live_chat_enabled(),
+    reason=(
+        "Live OpenRouter test requires OPENROUTER_API_KEY and "
+        "OPENROUTER_ENABLE_LIVE_TESTS=1"
+    ),
+)
+def test_live_openrouter_chat_connectivity() -> None:
+    db_path = ROOT_DIR / "backend" / "data" / "e2e-chat-live.db"
+    if db_path.exists():
+        db_path.unlink()
+
+    env = os.environ.copy()
+    env["DB_PATH"] = str(db_path)
+
+    process = subprocess.Popen(
+        [
+            "uvicorn",
+            "backend.app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8012",
+        ],
+        cwd=ROOT_DIR,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+
+    try:
+        wait_for_server("http://127.0.0.1:8012/")
+
+        login_response = httpx.post(
+            "http://127.0.0.1:8012/api/auth/login",
+            json={"username": "user", "password": "password"},
+            timeout=3.0,
+        )
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        headers = {"Authorization": f"Bearer {token}"}
+        chat_response = httpx.post(
+            "http://127.0.0.1:8012/api/chat",
+            headers=headers,
+            json={"prompt": "2+2"},
+            timeout=30.0,
+        )
+
+        assert chat_response.status_code == 200
+        body = chat_response.json()
+        assistant = body.get("assistant", "")
+        assert isinstance(assistant, str)
+        assert assistant.strip()
+        assert re.search(r"\b4\b|\bfour\b", assistant.lower()) is not None
     finally:
         process.terminate()
         process.wait(timeout=5)

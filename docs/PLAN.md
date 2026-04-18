@@ -192,25 +192,25 @@ Note: stop/start scripts remove and recreate the container, so container-local D
 
 ### Checklist
 
-- [ ] Add backend OpenRouter client wiring using `OPENROUTER_API_KEY` from `.env`.
-- [ ] Configure model `openai/gpt-oss-120b`.
-- [ ] Define `.env` flag `OPENROUTER_ENABLE_LIVE_TESTS=1` as the default (live tests enabled by default).
-- [ ] Add authenticated `POST /api/chat` route/service using the same JWT dependency as board routes.
-- [ ] Accept a client-provided prompt in the chat request payload.
-- [ ] Return only assistant text in successful chat responses.
-- [ ] Handle network/auth/provider errors with a standardized API error envelope.
+- [x] Add backend OpenRouter client wiring using `OPENROUTER_API_KEY` from `.env`.
+- [x] Configure model `openai/gpt-oss-120b`.
+- [x] Define `.env` flag `OPENROUTER_ENABLE_LIVE_TESTS=1` as the default (live tests enabled by default).
+- [x] Add authenticated `POST /api/chat` route/service using the same JWT dependency as board routes.
+- [x] Accept a client-provided prompt in the chat request payload.
+- [x] Return only assistant text in successful chat responses.
+- [x] Handle network/auth/provider errors with a standardized API error envelope.
 
 ### Tests
 
-- [ ] Unit: request builder and response parser behavior.
-- [ ] Integration: mocked OpenRouter client success/failure paths.
-- [ ] End-to-end: live connectivity check uses prompt `2+2` and runs by default when `OPENROUTER_API_KEY` is present and `OPENROUTER_ENABLE_LIVE_TESTS=1`.
+- [x] Unit: request builder and response parser behavior.
+- [x] Integration: mocked OpenRouter client success/failure paths.
+- [x] End-to-end: live connectivity check uses prompt `2+2` and runs by default when `OPENROUTER_API_KEY` is present and `OPENROUTER_ENABLE_LIVE_TESTS=1`.
 
 ### Success Criteria
 
-- [ ] Backend can successfully call OpenRouter from containerized app.
-- [ ] `POST /api/chat` requires JWT and returns assistant text-only response structure.
-- [ ] Failure modes are visible and debuggable.
+- [x] Backend can successfully call OpenRouter from containerized app.
+- [x] `POST /api/chat` requires JWT and returns assistant text-only response structure.
+- [x] Failure modes are visible and debuggable.
 
 ### Live Test Flag Usage
 
@@ -269,3 +269,5 @@ Note: stop/start scripts remove and recreate the container, so container-local D
 - Complete parts in order.
 - Do not begin Part 2 until the user approves this plan.
 - Keep implementation minimal and focused on MVP requirements only.
+- For backend verification, always rebuild/recreate the container from workspace files before running in-container tests (for example, via `scripts/start-mac.sh`, `scripts/start-linux.sh`, or `scripts/start-windows.ps1`).
+- Do not use `docker cp` file sync into a running container as a validation step; use rebuild-and-run for reproducible results.
