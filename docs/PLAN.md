@@ -194,21 +194,29 @@ Note: stop/start scripts remove and recreate the container, so container-local D
 
 - [ ] Add backend OpenRouter client wiring using `OPENROUTER_API_KEY` from `.env`.
 - [ ] Configure model `openai/gpt-oss-120b`.
-- [ ] Add a minimal backend route/service to test AI call plumbing.
-- [ ] Implement deterministic connectivity probe prompt (`2+2`).
-- [ ] Handle network/auth/provider errors with clear responses.
+- [ ] Define `.env` flag `OPENROUTER_ENABLE_LIVE_TESTS=1` as the default (live tests enabled by default).
+- [ ] Add authenticated `POST /api/chat` route/service using the same JWT dependency as board routes.
+- [ ] Accept a client-provided prompt in the chat request payload.
+- [ ] Return only assistant text in successful chat responses.
+- [ ] Handle network/auth/provider errors with a standardized API error envelope.
 
 ### Tests
 
 - [ ] Unit: request builder and response parser behavior.
 - [ ] Integration: mocked OpenRouter client success/failure paths.
-- [ ] End-to-end: optional live connectivity check gated by env key presence.
+- [ ] End-to-end: live connectivity check uses prompt `2+2` and runs by default when `OPENROUTER_API_KEY` is present and `OPENROUTER_ENABLE_LIVE_TESTS=1`.
 
 ### Success Criteria
 
 - [ ] Backend can successfully call OpenRouter from containerized app.
-- [ ] Probe route reliably returns expected response structure.
+- [ ] `POST /api/chat` requires JWT and returns assistant text-only response structure.
 - [ ] Failure modes are visible and debuggable.
+
+### Live Test Flag Usage
+
+- `.env` defines `OPENROUTER_ENABLE_LIVE_TESTS`.
+- Default is `OPENROUTER_ENABLE_LIVE_TESTS=1` (live OpenRouter tests enabled).
+- Set `OPENROUTER_ENABLE_LIVE_TESTS=0` to disable live OpenRouter tests.
 
 ## Part 9: Structured AI Board Updates
 
