@@ -1,14 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import {
   ApiError,
   fetchBoard,
   fetchCurrentUser,
   loginRequest,
+  sendChatMessage,
   updateBoard,
 } from "@/lib/api";
+import { appendChatExchange, type ChatMessage, toChatHistory } from "@/lib/chat";
 import type { BoardData } from "@/lib/kanban";
 
 const AUTH_TOKEN_KEY = "pm_auth_token";
@@ -36,6 +39,9 @@ export const AppShell = () => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [boardError, setBoardError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatSubmitting, setIsChatSubmitting] = useState(false);
   const [username, setUsername] = useState("user");
   const [password, setPassword] = useState("password");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -133,6 +139,39 @@ export const AppShell = () => {
     setBoard(null);
     setBoardError(null);
     setSyncError(null);
+    setChatError(null);
+    setChatMessages([]);
+    setIsChatSubmitting(false);
+  };
+
+  const handleChatSend = async (prompt: string) => {
+    const token = getToken();
+    if (!token) {
+      handleLogout();
+      return;
+    }
+
+    setChatError(null);
+    setIsChatSubmitting(true);
+
+    try {
+      const response = await sendChatMessage(token, prompt, toChatHistory(chatMessages));
+      setChatMessages((previous) =>
+        appendChatExchange(previous, prompt, response.assistant)
+      );
+
+      if (response.board) {
+        setBoard(response.board);
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setChatError(error.message);
+      } else {
+        setChatError("Unable to reach AI assistant right now.");
+      }
+    } finally {
+      setIsChatSubmitting(false);
+    }
   };
 
   if (authStatus === "checking") {
@@ -248,16 +287,23 @@ export const AppShell = () => {
       ) : null}
 
       {boardStatus === "ready" && board ? (
-        <>
+        <div className="mx-auto grid max-w-[1900px] gap-6 px-4 pb-10 sm:px-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           {syncError ? (
-            <div className="mx-auto mt-4 max-w-[1500px] px-6">
+            <div className="xl:col-span-2">
               <div className="rounded-xl border border-[#f2c0c0] bg-[#fff5f5] px-4 py-3 text-sm text-[#962626]">
                 {syncError}
               </div>
             </div>
           ) : null}
+
           <KanbanBoard initialBoard={board} onBoardChange={handleBoardChange} />
-        </>
+          <ChatSidebar
+            messages={chatMessages}
+            isSending={isChatSubmitting}
+            errorMessage={chatError}
+            onSend={handleChatSend}
+          />
+        </div>
       ) : null}
     </div>
   );

@@ -1,5 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
-import { fetchBoard, loginRequest, updateBoard } from "@/lib/api";
+import {
+  ApiError,
+  fetchBoard,
+  loginRequest,
+  sendChatMessage,
+  updateBoard,
+} from "@/lib/api";
 import { initialData } from "@/lib/kanban";
 
 const mockedFetch = vi.fn<typeof fetch>();
@@ -72,6 +78,47 @@ describe("api client", () => {
       expect.objectContaining({
         method: "PUT",
         body: JSON.stringify(updatedBoard),
+      })
+    );
+  });
+
+  it("sends chat request with prompt and history", async () => {
+    mockedFetch.mockResolvedValueOnce(
+      jsonResponse({ assistant: "Done.", board: null })
+    );
+
+    const response = await sendChatMessage("token-123", "Move card-1", [
+      { role: "user", content: "Earlier prompt" },
+      { role: "assistant", content: "Earlier answer" },
+    ]);
+
+    expect(response).toEqual({ assistant: "Done.", board: null });
+    expect(mockedFetch).toHaveBeenCalledWith(
+      "/api/chat",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          prompt: "Move card-1",
+          history: [
+            { role: "user", content: "Earlier prompt" },
+            { role: "assistant", content: "Earlier answer" },
+          ],
+        }),
+      })
+    );
+  });
+
+  it("surfaces backend detail text from failed responses", async () => {
+    mockedFetch.mockResolvedValueOnce(
+      jsonResponse({ detail: "OpenRouter returned schema-invalid response." }, 502)
+    );
+
+    await expect(
+      sendChatMessage("token-123", "Move card-1", [])
+    ).rejects.toEqual(
+      expect.objectContaining<ApiError>({
+        status: 502,
+        message: "OpenRouter returned schema-invalid response.",
       })
     );
   });

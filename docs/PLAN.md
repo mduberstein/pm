@@ -256,23 +256,23 @@ Note: stop/start scripts remove and recreate the container, so container-local D
 
 ### Checklist
 
-- [ ] Add sidebar chat UI integrated into existing board layout.
-- [ ] Support conversation history in UI and backend request payload.
-- [ ] Send prompts to backend AI endpoint and render assistant replies.
-- [ ] When backend returns a board update, refresh board state automatically.
-- [ ] Keep visual design aligned with project color scheme and current UI language.
+- [x] Add sidebar chat UI integrated into existing board layout.
+- [x] Support conversation history in UI and backend request payload.
+- [x] Send prompts to backend AI endpoint and render assistant replies.
+- [x] When backend returns a board update, refresh board state automatically.
+- [x] Keep visual design aligned with project color scheme and current UI language.
 
 ### Tests
 
-- [ ] Unit: chat state reducers/helpers and message rendering behavior.
-- [ ] Integration: component tests for send, loading, error, and update application flows.
-- [ ] End-to-end: user chats, receives response, and sees board auto-refresh on AI update.
+- [x] Unit: chat state reducers/helpers and message rendering behavior.
+- [x] Integration: component tests for send, loading, error, and update application flows.
+- [x] End-to-end: user chats, receives response, and sees board auto-refresh on AI update.
 
 ### Success Criteria
 
-- [ ] Sidebar supports stable multi-message chat flow.
-- [ ] AI-driven board updates appear without manual page reload.
-- [ ] Full MVP scenario works in single-container local runtime.
+- [x] Sidebar supports stable multi-message chat flow.
+- [x] AI-driven board updates appear without manual page reload.
+- [x] Full MVP scenario works in single-container local runtime.
 
 ## Execution Rules
 

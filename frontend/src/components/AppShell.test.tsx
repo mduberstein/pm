@@ -111,4 +111,154 @@ describe("AppShell", () => {
       );
     });
   });
+
+  it("sends chat prompts and renders assistant response", async () => {
+    window.localStorage.setItem("pm_auth_token", "token-123");
+
+    mockedFetch.mockImplementation((input, init) => {
+      const url = getUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve(jsonResponse({ username: "user" }));
+      }
+
+      if (url === "/api/board" && method === "GET") {
+        return Promise.resolve(jsonResponse(initialData));
+      }
+
+      if (url === "/api/board" && method === "PUT") {
+        return Promise.resolve(jsonResponse(JSON.parse(String(init?.body ?? "{}"))));
+      }
+
+      if (url === "/api/chat" && method === "POST") {
+        return Promise.resolve(
+          jsonResponse({
+            assistant: "I moved the card.",
+            board: null,
+          })
+        );
+      }
+
+      return Promise.resolve(jsonResponse({ detail: "Not found" }, 404));
+    });
+
+    render(<AppShell />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Kanban Studio" })).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByLabelText("Message"), "Move card-1 to review");
+    await userEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("I moved the card.")).toBeInTheDocument();
+    });
+
+    expect(mockedFetch).toHaveBeenCalledWith(
+      "/api/chat",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("applies board updates returned by chat endpoint", async () => {
+    window.localStorage.setItem("pm_auth_token", "token-123");
+
+    const aiBoard = {
+      columns: [{ id: "col-backlog", title: "Backlog", cardIds: ["card-1"] }],
+      cards: {
+        "card-1": {
+          id: "card-1",
+          title: "AI Updated Card",
+          details: "Updated by assistant.",
+        },
+      },
+    };
+
+    mockedFetch.mockImplementation((input, init) => {
+      const url = getUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve(jsonResponse({ username: "user" }));
+      }
+
+      if (url === "/api/board" && method === "GET") {
+        return Promise.resolve(jsonResponse(initialData));
+      }
+
+      if (url === "/api/chat" && method === "POST") {
+        return Promise.resolve(
+          jsonResponse({
+            assistant: "Applied board update.",
+            board: aiBoard,
+          })
+        );
+      }
+
+      if (url === "/api/board" && method === "PUT") {
+        return Promise.resolve(jsonResponse(JSON.parse(String(init?.body ?? "{}"))));
+      }
+
+      return Promise.resolve(jsonResponse({ detail: "Not found" }, 404));
+    });
+
+    render(<AppShell />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Kanban Studio" })).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByLabelText("Message"), "Update board");
+    await userEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("AI Updated Card")).toBeInTheDocument();
+    });
+  });
+
+  it("shows chat error when AI request fails", async () => {
+    window.localStorage.setItem("pm_auth_token", "token-123");
+
+    mockedFetch.mockImplementation((input, init) => {
+      const url = getUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve(jsonResponse({ username: "user" }));
+      }
+
+      if (url === "/api/board" && method === "GET") {
+        return Promise.resolve(jsonResponse(initialData));
+      }
+
+      if (url === "/api/chat" && method === "POST") {
+        return Promise.resolve(
+          jsonResponse({ detail: "OpenRouter returned schema-invalid response." }, 502)
+        );
+      }
+
+      if (url === "/api/board" && method === "PUT") {
+        return Promise.resolve(jsonResponse(JSON.parse(String(init?.body ?? "{}"))));
+      }
+
+      return Promise.resolve(jsonResponse({ detail: "Not found" }, 404));
+    });
+
+    render(<AppShell />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Kanban Studio" })).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByLabelText("Message"), "Update board");
+    await userEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("OpenRouter returned schema-invalid response.")
+      ).toBeInTheDocument();
+    });
+  });
 });

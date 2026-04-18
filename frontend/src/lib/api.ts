@@ -1,5 +1,17 @@
 import type { BoardData } from "@/lib/kanban";
 
+export type ChatRole = "user" | "assistant";
+
+export type ChatHistoryMessage = {
+  role: ChatRole;
+  content: string;
+};
+
+export type ChatResponse = {
+  assistant: string;
+  board: BoardData | null;
+};
+
 export type LoginResponse = {
   access_token: string;
   token_type: string;
@@ -16,7 +28,15 @@ export class ApiError extends Error {
 
 const parseJsonResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
-    const message = `Request failed with status ${response.status}`;
+    let message = `Request failed with status ${response.status}`;
+    try {
+      const payload = (await response.json()) as { detail?: unknown };
+      if (typeof payload.detail === "string" && payload.detail.trim()) {
+        message = payload.detail;
+      }
+    } catch {
+      // Ignore JSON parsing issues and fall back to default message.
+    }
     throw new ApiError(message, response.status);
   }
 
@@ -74,4 +94,21 @@ export const updateBoard = async (
   });
 
   return parseJsonResponse<BoardData>(response);
+};
+
+export const sendChatMessage = async (
+  token: string,
+  prompt: string,
+  history: ChatHistoryMessage[]
+): Promise<ChatResponse> => {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt, history }),
+  });
+
+  return parseJsonResponse<ChatResponse>(response);
 };
