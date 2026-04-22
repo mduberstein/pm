@@ -19,6 +19,27 @@ describe("KanbanBoard", () => {
     expect(input).toHaveValue("New Name");
   });
 
+  it("edits an existing card title and details", async () => {
+    render(<KanbanBoard />);
+    const column = getFirstColumn();
+
+    const editButton = within(column).getAllByRole("button", { name: /^edit /i })[0];
+    await userEvent.click(editButton);
+
+    const titleInput = within(column).getByLabelText("Card title");
+    await userEvent.clear(titleInput);
+    await userEvent.type(titleInput, "Updated Title");
+
+    const detailsInput = within(column).getByLabelText("Card details");
+    await userEvent.clear(detailsInput);
+    await userEvent.type(detailsInput, "Updated details");
+
+    await userEvent.click(within(column).getByRole("button", { name: /^save$/i }));
+
+    expect(within(column).getByText("Updated Title")).toBeInTheDocument();
+    expect(within(column).getByText("Updated details")).toBeInTheDocument();
+  });
+
   it("adds and removes a card", async () => {
     render(<KanbanBoard />);
     const column = getFirstColumn();

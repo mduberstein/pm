@@ -89,6 +89,16 @@ export const KanbanBoard = ({
     });
   };
 
+  const handleEditCard = (cardId: string, title: string, details: string) => {
+    applyBoardUpdate({
+      ...board,
+      cards: {
+        ...board.cards,
+        [cardId]: { ...board.cards[cardId], title, details },
+      },
+    });
+  };
+
   const handleDeleteCard = (columnId: string, cardId: string) => {
     applyBoardUpdate({
       ...board,
@@ -165,6 +175,7 @@ export const KanbanBoard = ({
                 onRename={handleRenameColumn}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
+                onEditCard={handleEditCard}
               />
             ))}
           </section>
