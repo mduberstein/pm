@@ -2,10 +2,14 @@ import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from backend.app import ai_client
 from backend.app.auth import create_access_token, get_current_user, validate_credentials
@@ -16,6 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 FRONTEND_DIR = STATIC_DIR / "frontend"
 
+limiter = Limiter(key_func=get_remote_address)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -24,6 +30,14 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="PM MVP Backend", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 board_repository = BoardRepository()
 
 
@@ -129,7 +143,8 @@ def hello() -> dict[str, str]:
 
 
 @app.post("/api/auth/login", response_model=LoginResponse)
-def login(payload: LoginRequest) -> LoginResponse:
+@limiter.limit("60/minute")
+def login(request: Request, payload: LoginRequest) -> LoginResponse:
     if not validate_credentials(payload.username, payload.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -180,13 +195,13 @@ def chat(
     except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="OpenRouter returned schema-invalid response.",
+            detail="AI service returned invalid JSON.",
         ) from exc
 
     if not isinstance(parsed_ai_payload, dict):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="OpenRouter returned schema-invalid response.",
+            detail="AI service returned unexpected response format.",
         )
 
     try:
@@ -194,7 +209,7 @@ def chat(
     except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="OpenRouter returned schema-invalid response.",
+            detail="AI response did not match expected schema.",
         ) from exc
 
     saved_board: BoardStateModel | None = None

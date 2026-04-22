@@ -235,7 +235,7 @@ describe("AppShell", () => {
 
       if (url === "/api/chat" && method === "POST") {
         return Promise.resolve(
-          jsonResponse({ detail: "OpenRouter returned schema-invalid response." }, 502)
+          jsonResponse({ detail: "AI service returned invalid JSON." }, 502)
         );
       }
 
@@ -257,7 +257,46 @@ describe("AppShell", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("OpenRouter returned schema-invalid response.")
+        screen.getByText("AI service returned invalid JSON.")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("shows sync error banner when board save fails", async () => {
+    window.localStorage.setItem("pm_auth_token", "token-123");
+
+    mockedFetch.mockImplementation((input, init) => {
+      const url = getUrl(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve(jsonResponse({ username: "user" }));
+      }
+
+      if (url === "/api/board" && method === "GET") {
+        return Promise.resolve(jsonResponse(initialData));
+      }
+
+      if (url === "/api/board" && method === "PUT") {
+        return Promise.resolve(jsonResponse({ detail: "Internal server error" }, 500));
+      }
+
+      return Promise.resolve(jsonResponse({ detail: "Not found" }, 404));
+    });
+
+    render(<AppShell />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Kanban Studio" })).toBeInTheDocument();
+    });
+
+    const firstColumnTitle = screen.getAllByLabelText("Column title")[0];
+    await userEvent.clear(firstColumnTitle);
+    await userEvent.type(firstColumnTitle, "Renamed");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Could not sync board changes to the server.")
       ).toBeInTheDocument();
     });
   });

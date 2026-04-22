@@ -1,4 +1,3 @@
-import copy
 import json
 from pathlib import Path
 
@@ -13,64 +12,51 @@ class BoardRepository:
     def _target_path(self) -> Path:
         return ensure_database(self.db_path)
 
-    def _get_or_create_user_id(self, username: str) -> int:
-        target_path = self._target_path()
-        with connect(target_path) as connection:
-            row = connection.execute(
-                "SELECT id FROM users WHERE username = ?",
-                (username,),
-            ).fetchone()
-            if row is not None:
-                return int(row["id"])
+    def _ensure_user_id(self, conn, username: str) -> int:
+        row = conn.execute(
+            "SELECT id FROM users WHERE username = ?", (username,)
+        ).fetchone()
+        if row is not None:
+            return int(row["id"])
+        cursor = conn.execute(
+            "INSERT INTO users (username) VALUES (?)", (username,)
+        )
+        return int(cursor.lastrowid)
 
-            cursor = connection.execute(
-                "INSERT INTO users (username) VALUES (?)",
-                (username,),
-            )
-            return int(cursor.lastrowid)
-
-    def _get_or_create_active_board_id(self, user_id: int) -> int:
-        target_path = self._target_path()
-        with connect(target_path) as connection:
-            row = connection.execute(
-                "SELECT id FROM boards WHERE user_id = ? AND is_active = 1 LIMIT 1",
-                (user_id,),
-            ).fetchone()
-            if row is not None:
-                return int(row["id"])
-
-            cursor = connection.execute(
-                """
-                INSERT INTO boards (user_id, name, is_active, board_state_json, schema_version)
-                VALUES (?, 'Main Board', 1, ?, 1)
-                """,
-                (user_id, json.dumps(DEFAULT_BOARD_STATE)),
-            )
-            return int(cursor.lastrowid)
+    def _ensure_active_board_id(self, conn, user_id: int) -> int:
+        row = conn.execute(
+            "SELECT id FROM boards WHERE user_id = ? AND is_active = 1 LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if row is not None:
+            return int(row["id"])
+        cursor = conn.execute(
+            """
+            INSERT INTO boards (user_id, name, is_active, board_state_json, schema_version)
+            VALUES (?, 'Main Board', 1, ?, 1)
+            """,
+            (user_id, json.dumps(DEFAULT_BOARD_STATE)),
+        )
+        return int(cursor.lastrowid)
 
     def get_active_board(self, username: str) -> dict:
-        user_id = self._get_or_create_user_id(username)
-        board_id = self._get_or_create_active_board_id(user_id)
-
         target_path = self._target_path()
-        with connect(target_path) as connection:
-            row = connection.execute(
-                "SELECT board_state_json FROM boards WHERE id = ?",
-                (board_id,),
+        with connect(target_path) as conn:
+            user_id = self._ensure_user_id(conn, username)
+            board_id = self._ensure_active_board_id(conn, user_id)
+            row = conn.execute(
+                "SELECT board_state_json FROM boards WHERE id = ?", (board_id,)
             ).fetchone()
-
         if row is None:
-            return copy.deepcopy(DEFAULT_BOARD_STATE)
-
+            return json.loads(json.dumps(DEFAULT_BOARD_STATE))
         return json.loads(row["board_state_json"])
 
     def update_active_board(self, username: str, board_state: dict) -> dict:
-        user_id = self._get_or_create_user_id(username)
-        board_id = self._get_or_create_active_board_id(user_id)
-
         target_path = self._target_path()
-        with connect(target_path) as connection:
-            connection.execute(
+        with connect(target_path) as conn:
+            user_id = self._ensure_user_id(conn, username)
+            board_id = self._ensure_active_board_id(conn, user_id)
+            conn.execute(
                 """
                 UPDATE boards
                 SET board_state_json = ?,
@@ -80,5 +66,4 @@ class BoardRepository:
                 """,
                 (json.dumps(board_state), board_id),
             )
-
         return board_state

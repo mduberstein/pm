@@ -34,6 +34,7 @@ def _default_jwt_expire_minutes() -> int:
 
 
 def validate_credentials(username: str, password: str) -> bool:
+    # MVP only — replace with DB-backed auth + bcrypt before production.
     return username == "user" and password == "password"
 
 

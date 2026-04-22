@@ -141,7 +141,7 @@ def test_chat_rejects_schema_invalid_response_without_board_mutation(monkeypatch
     )
 
     assert response.status_code == 502
-    assert response.json() == {"detail": "OpenRouter returned schema-invalid response."}
+    assert response.json() == {"detail": "AI service returned invalid JSON."}
 
     reloaded_board_response = client.get("/api/board", headers=headers)
     assert reloaded_board_response.status_code == 200

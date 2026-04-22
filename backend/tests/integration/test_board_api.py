@@ -62,6 +62,17 @@ def test_put_board_persists_changes(monkeypatch, tmp_path) -> None:
     assert read_response.json() == updated_payload
 
 
+def test_expired_token_rejected(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "expired.db"))
+
+    from backend.app.auth import create_access_token
+    expired_token = create_access_token("user", expires_minutes=-1)
+
+    response = client.get("/api/board", headers={"Authorization": f"Bearer {expired_token}"})
+
+    assert response.status_code == 401
+
+
 def test_put_board_rejects_invalid_shape(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
 

@@ -162,7 +162,11 @@ export const moveCard = (
 };
 
 export const createId = (prefix: string) => {
-  const randomPart = Math.random().toString(36).slice(2, 8);
+  const randomBytes = new Uint8Array(4);
+  crypto.getRandomValues(randomBytes);
+  const randomPart = Array.from(randomBytes, (b) =>
+    b.toString(16).padStart(2, "0")
+  ).join("");
   const timePart = Date.now().toString(36);
   return `${prefix}-${randomPart}${timePart}`;
 };
