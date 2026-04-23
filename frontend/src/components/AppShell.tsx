@@ -155,7 +155,7 @@ export const AppShell = () => {
     setIsChatSubmitting(true);
 
     try {
-      const response = await sendChatMessage(token, prompt, toChatHistory(chatMessages));
+      const response = await sendChatMessage(token, prompt, toChatHistory(chatMessages), board!);
       setChatMessages((previous) =>
         appendChatExchange(previous, prompt, response.assistant)
       );

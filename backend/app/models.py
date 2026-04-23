@@ -68,6 +68,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     prompt: str
+    board: BoardStateModel | None = None
     history: list[ChatMessage] = Field(default_factory=list)
 
     @field_validator("prompt")

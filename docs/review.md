@@ -26,11 +26,13 @@ async with httpx.AsyncClient() as client:
     response = await client.post(...)
 ```
 
-### 2. Board overwrite race condition (`routers/chat.py:19` vs `routers/board.py:18`)
+### 2. ~~Board overwrite race condition~~ — **Fixed**
 
-The chat endpoint fetches the board from the DB, sends it to the AI, and then saves the AI's result. If the user drags a card while waiting for the AI response, the frontend fires `PUT /api/board` concurrently. The AI response will then overwrite those drag changes silently — **data loss**.
+~~The chat endpoint fetched the board from DB, sent it to AI, then saved the AI result. A concurrent drag (`PUT /api/board`) would silently overwrite those changes.~~
 
-The chat endpoint should either (a) accept the current board state from the client in `ChatRequest` instead of fetching from DB, or (b) use optimistic locking (e.g., a `updated_at` version check before saving the AI result).
+**Resolution:** Two-part fix:
+- `ChatRequest` now accepts an optional `board` field; the frontend sends the current board so the AI always sees the most up-to-date state, not a potentially-stale DB snapshot.
+- `update_active_board_if_unchanged` uses a compare-and-swap (`WHERE board_state_json = ?`) — if a concurrent drag saved while the AI was thinking, the AI's board save is skipped and `board: null` is returned instead of silently clobbering the drag. The assistant message is still returned normally.
 
 ---
 

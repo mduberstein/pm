@@ -175,6 +175,77 @@ def test_chat_surfaces_provider_error_envelope(monkeypatch, tmp_path) -> None:
     assert response.json() == {"detail": "OpenRouter request failed."}
 
 
+def test_chat_skips_board_save_on_concurrent_update(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
+
+    ai_board = {
+        "columns": [{"id": "col-backlog", "title": "Backlog", "cardIds": ["card-ai"]}],
+        "cards": {"card-ai": {"id": "card-ai", "title": "AI card", "details": "From AI"}},
+    }
+    drag_board = {
+        "columns": [{"id": "col-backlog", "title": "Backlog", "cardIds": ["card-drag"]}],
+        "cards": {"card-drag": {"id": "card-drag", "title": "Drag card", "details": "From drag"}},
+    }
+
+    headers = auth_header()
+
+    def fake_fetch_with_concurrent_drag(
+        prompt: str,
+        board_state: dict | None = None,
+        history: list[dict[str, str]] | None = None,
+        timeout_seconds: float = 20.0,
+    ) -> str:
+        # Simulate a drag-and-drop saving while AI is thinking
+        client.put("/api/board", headers=headers, json=drag_board)
+        return json.dumps({"assistant": "Done.", "board": ai_board})
+
+    monkeypatch.setattr(ai_client, "fetch_assistant_reply", fake_fetch_with_concurrent_drag)
+
+    response = client.post(
+        "/api/chat",
+        headers=headers,
+        json={"prompt": "Add a card"},
+    )
+
+    assert response.status_code == 200
+    # AI board is not returned because the concurrent drag took precedence
+    assert response.json()["board"] is None
+    assert response.json()["assistant"] == "Done."
+
+    # Drag changes were preserved
+    board_response = client.get("/api/board", headers=headers)
+    assert board_response.json() == drag_board
+
+
+def test_chat_uses_client_board_for_ai_context(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
+
+    client_board = {
+        "columns": [{"id": "col-backlog", "title": "Backlog", "cardIds": ["card-local"]}],
+        "cards": {"card-local": {"id": "card-local", "title": "Local unsaved card", "details": ""}},
+    }
+    captured: dict[str, object] = {}
+
+    def fake_fetch(
+        prompt: str,
+        board_state: dict | None = None,
+        history: list[dict[str, str]] | None = None,
+        timeout_seconds: float = 20.0,
+    ) -> str:
+        captured["board_state"] = board_state
+        return json.dumps({"assistant": "Got it.", "board": None})
+
+    monkeypatch.setattr(ai_client, "fetch_assistant_reply", fake_fetch)
+
+    client.post(
+        "/api/chat",
+        headers=auth_header(),
+        json={"prompt": "Describe the board", "board": client_board},
+    )
+
+    assert captured["board_state"] == client_board
+
+
 def test_chat_rejects_empty_prompt(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DB_PATH", str(tmp_path / "integration.db"))
 

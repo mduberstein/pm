@@ -99,7 +99,8 @@ export const updateBoard = async (
 export const sendChatMessage = async (
   token: string,
   prompt: string,
-  history: ChatHistoryMessage[]
+  history: ChatHistoryMessage[],
+  board: BoardData,
 ): Promise<ChatResponse> => {
   const response = await fetch("/api/chat", {
     method: "POST",
@@ -107,7 +108,7 @@ export const sendChatMessage = async (
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ prompt, history }),
+    body: JSON.stringify({ prompt, history, board }),
   });
 
   return parseJsonResponse<ChatResponse>(response);

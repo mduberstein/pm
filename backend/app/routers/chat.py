@@ -16,13 +16,14 @@ def chat(
     payload: ChatRequest,
     username: str = Depends(get_current_user),
 ) -> ChatResponse:
-    current_board = board_repository.get_active_board(username)
+    db_board, snapshot_json = board_repository.get_active_board_with_snapshot(username)
+    board_for_ai = payload.board.model_dump() if payload.board is not None else db_board
     history_payload = [message.model_dump() for message in payload.history]
 
     try:
         assistant_reply = ai_client.fetch_assistant_reply(
             payload.prompt,
-            board_state=current_board,
+            board_state=board_for_ai,
             history=history_payload,
         )
     except ai_client.OpenRouterError as exc:
@@ -52,10 +53,12 @@ def chat(
 
     saved_board: BoardStateModel | None = None
     if structured_response.board is not None:
-        persisted_board = board_repository.update_active_board(
+        persisted = board_repository.update_active_board_if_unchanged(
             username,
             structured_response.board.model_dump(),
+            snapshot_json,
         )
-        saved_board = BoardStateModel.model_validate(persisted_board)
+        if persisted is not None:
+            saved_board = BoardStateModel.model_validate(persisted)
 
     return ChatResponse(assistant=structured_response.assistant, board=saved_board)

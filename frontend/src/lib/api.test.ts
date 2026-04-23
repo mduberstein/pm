@@ -82,15 +82,20 @@ describe("api client", () => {
     );
   });
 
-  it("sends chat request with prompt and history", async () => {
+  it("sends chat request with prompt, history, and board state", async () => {
     mockedFetch.mockResolvedValueOnce(
       jsonResponse({ assistant: "Done.", board: null })
     );
 
-    const response = await sendChatMessage("token-123", "Move card-1", [
-      { role: "user", content: "Earlier prompt" },
-      { role: "assistant", content: "Earlier answer" },
-    ]);
+    const response = await sendChatMessage(
+      "token-123",
+      "Move card-1",
+      [
+        { role: "user", content: "Earlier prompt" },
+        { role: "assistant", content: "Earlier answer" },
+      ],
+      initialData,
+    );
 
     expect(response).toEqual({ assistant: "Done.", board: null });
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -103,6 +108,7 @@ describe("api client", () => {
             { role: "user", content: "Earlier prompt" },
             { role: "assistant", content: "Earlier answer" },
           ],
+          board: initialData,
         }),
       })
     );
@@ -114,7 +120,7 @@ describe("api client", () => {
     );
 
     await expect(
-      sendChatMessage("token-123", "Move card-1", [])
+      sendChatMessage("token-123", "Move card-1", [], initialData)
     ).rejects.toEqual(
       expect.objectContaining<ApiError>({
         status: 502,
