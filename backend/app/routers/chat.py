@@ -52,6 +52,7 @@ def chat(
         ) from exc
 
     saved_board: BoardStateModel | None = None
+    assistant_message = structured_response.assistant
     if structured_response.board is not None:
         persisted = board_repository.update_active_board_if_unchanged(
             username,
@@ -60,5 +61,12 @@ def chat(
         )
         if persisted is not None:
             saved_board = BoardStateModel.model_validate(persisted)
+        else:
+            assistant_message = (
+                "⚠️ Board update suspended — a concurrent manual change was made "
+                "while the AI was processing, so no AI modifications were applied. "
+                "Re-send your request if you still want this change.\n\n"
+                + structured_response.assistant
+            )
 
-    return ChatResponse(assistant=structured_response.assistant, board=saved_board)
+    return ChatResponse(assistant=assistant_message, board=saved_board)

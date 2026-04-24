@@ -208,9 +208,12 @@ def test_chat_skips_board_save_on_concurrent_update(monkeypatch, tmp_path) -> No
     )
 
     assert response.status_code == 200
+    body = response.json()
     # AI board is not returned because the concurrent drag took precedence
-    assert response.json()["board"] is None
-    assert response.json()["assistant"] == "Done."
+    assert body["board"] is None
+    # Assistant message must surface the suspension, not claim the update succeeded
+    assert "suspended" in body["assistant"].lower()
+    assert "Done." in body["assistant"]
 
     # Drag changes were preserved
     board_response = client.get("/api/board", headers=headers)
