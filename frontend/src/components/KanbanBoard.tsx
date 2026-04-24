@@ -7,10 +7,21 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  pointerWithin,
+  closestCenter,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+
+// pointerWithin detects the container the pointer is physically inside, which
+// correctly identifies empty columns. closestCorners (the previous strategy)
+// measures corner-to-corner distance and consistently picks nearby cards in
+// adjacent columns instead, making drops into empty columns impossible.
+const detectCollision: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : closestCenter(args);
+};
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
@@ -162,7 +173,7 @@ export const KanbanBoard = ({
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={detectCollision}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
